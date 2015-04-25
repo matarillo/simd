@@ -146,7 +146,6 @@ int main()
 	std::unique_ptr<Vector4[]> vSimd(new Vector4[n]);
 	std::unique_ptr<Vector4[]> xSimd(new Vector4[n]);
 	{
-
 		std::copy_n(v.get(), n, vSimd.get());
 		std::copy_n(x.get(), n, xSimd.get());
 
@@ -161,7 +160,7 @@ int main()
 	}
 
 	// エラーチェック
-	const double eps = 1e8;
+	const double eps = 1e-8;
 	for (int i = 0; i < n; i++)
 	{
 		for (int j = 0; j < 4; j++)
@@ -169,13 +168,13 @@ int main()
 			const double errorV = std::abs(vNormal[i].data[j] - vSimd[i].data[j]) / vNormal[i].data[j];
 			if (errorV > eps)
 			{
-				std::cout << "error V[" << i << "][" << j << "]: " << std::endl;
+				std::cout << "error V[" << i << "][" << j << "]: " << errorV << std::endl;
 			}
 
 			const double errorX = std::abs(xNormal[i].data[j] - xSimd[i].data[j]) / xNormal[i].data[j];
 			if (errorV > eps)
 			{
-				std::cout << "error X[" << i << "][" << j << "]" << std::endl;
+				std::cout << "error X[" << i << "][" << j << "]" << errorX << std::endl;
 			}
 		}
 	}
