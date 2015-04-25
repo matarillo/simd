@@ -46,7 +46,7 @@ public:
 	}
 };
 
-// ‚È‚É‚à‚µ‚È‚¢
+// ãªã«ã‚‚ã—ãªã„
 static void Normal(Vector4 x[], Vector4 v[], const Vector4 f[], const double m, const double dt, const std::size_t n)
 {
 	const double tmp = dt*dt / 2;
@@ -125,7 +125,7 @@ int main()
 	const double dt = 0.1;
 	const double m = 2.5;
 
-	// ‚È‚É‚à‚µ‚È‚¢
+	// ãªã«ã‚‚ã—ãªã„
 	std::unique_ptr<Vector4[]> vNormal(new Vector4[n]);
 	std::unique_ptr<Vector4[]> xNormal(new Vector4[n]);
 	{
@@ -159,7 +159,7 @@ int main()
 		std::cout << normalTime.count() << "[ms]" << std::endl;
 	}
 
-	// ƒGƒ‰[ƒ`ƒFƒbƒN
+	// ã‚¨ãƒ©ãƒ¼ãƒã‚§ãƒƒã‚¯
 	const double eps = 1e-8;
 	for (int i = 0; i < n; i++)
 	{

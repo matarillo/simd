@@ -65,7 +65,7 @@ public:
 	}
 };
 
-// ‚È‚É‚à‚µ‚È‚¢
+// ãªã«ã‚‚ã—ãªã„
 static void Normal(Vector4 x[], Vector4 v[], const Vector4 f[], const double m, const double dt, const std::size_t n)
 {
 	const double tmp = dt*dt / 2;
@@ -99,7 +99,7 @@ static void Normal(Vector4 x[], Vector4 v[], const Vector4 f[], const double m, 
 
 int main()
 {
-	// ƒoƒbƒtƒ@[‚ğì¬•ˆø”İ’è
+	// ãƒãƒƒãƒ•ã‚¡ãƒ¼ã‚’ä½œæˆï¼†å¼•æ•°è¨­å®š
 	const std::size_t n = 100000;
 	const int loop = 1000;
 
@@ -119,7 +119,7 @@ int main()
 
 	Timer timer;
 
-	// ‚È‚É‚à‚µ‚È‚¢
+	// ãªã«ã‚‚ã—ãªã„
 	std::unique_ptr<Vector4[]> vNormal(new Vector4[n]);
 	std::unique_ptr<Vector4[]> xNormal(new Vector4[n]);
 	{
@@ -145,20 +145,20 @@ int main()
 		std::cout << "OpenCL: ";
 		timer.Start();
 
-		// ƒvƒ‰ƒbƒgƒtƒH[ƒ€æ“¾i•¡”‚ ‚éê‡‚Íˆê”ÔÅŒãj
+		// ãƒ—ãƒ©ãƒƒãƒˆãƒ•ã‚©ãƒ¼ãƒ å–å¾—ï¼ˆè¤‡æ•°ã‚ã‚‹å ´åˆã¯ä¸€ç•ªæœ€å¾Œï¼‰
 		std::vector<cl::Platform> platforms;
 		cl::Platform::get(&platforms);
 		const auto& platform = *(platforms.rbegin());
 
-		// ƒfƒoƒCƒX‚ğæ“¾i•¡”‚ ‚éê‡‚Íˆê”ÔÅŒãj
+		// ãƒ‡ãƒã‚¤ã‚¹ã‚’å–å¾—ï¼ˆè¤‡æ•°ã‚ã‚‹å ´åˆã¯ä¸€ç•ªæœ€å¾Œï¼‰
 		std::vector<cl::Device> devices;
 		platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
 		const auto& device = *(devices.rbegin());
 
-		// ƒRƒ“ƒeƒLƒXƒgì¬
+		// ã‚³ãƒ³ãƒ†ã‚­ã‚¹ãƒˆä½œæˆ
 		const cl::Context context(device);
 
-		// ƒvƒƒOƒ‰ƒ€‚Ìì¬•ƒrƒ‹ƒh
+		// ãƒ—ãƒ­ã‚°ãƒ©ãƒ ã®ä½œæˆï¼†ãƒ“ãƒ«ãƒ‰
 		cl::Program::Sources sources;
 		sources.push_back(std::make_pair(srcStr, std::strlen(srcStr)));
 		cl::Program program(context, sources);
@@ -166,13 +166,13 @@ int main()
 		{
 			program.build(devices);
 		}
-		// OpenCL—áŠO‚ª‚ ‚Á‚½ê‡
+		// OpenCLä¾‹å¤–ãŒã‚ã£ãŸå ´åˆ
 		catch (cl::Error error)
 		{
-			// ƒrƒ‹ƒhƒGƒ‰[‚È‚ç
+			// ãƒ“ãƒ«ãƒ‰ã‚¨ãƒ©ãƒ¼ãªã‚‰
 			if (error.err() == CL_BUILD_PROGRAM_FAILURE)
 			{
-				// ƒrƒ‹ƒhƒƒO‚ğ•\¦
+				// ãƒ“ãƒ«ãƒ‰ãƒ­ã‚°ã‚’è¡¨ç¤º
 				std::cout << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device);
 			}
 			else
@@ -183,7 +183,7 @@ int main()
 			return -1;
 		}
 
-		// ƒJ[ƒlƒ‹‚ğì¬
+		// ã‚«ãƒ¼ãƒãƒ«ã‚’ä½œæˆ
 		const std::string KERNEL_FUNCTION_NAME = "ocl";
 		cl::Kernel kernel(program, KERNEL_FUNCTION_NAME.c_str());
 
@@ -197,22 +197,22 @@ int main()
 		kernel.setArg(4, static_cast<cl_double>(dt));
 		kernel.setArg(5, static_cast<cl_ulong>(n));
 
-		// ƒLƒ…[ì¬
+		// ã‚­ãƒ¥ãƒ¼ä½œæˆ
 		const cl::CommandQueue queue(context, device);
-		// ƒzƒXƒg->ƒfƒoƒCƒX
+		// ãƒ›ã‚¹ãƒˆ->ãƒ‡ãƒã‚¤ã‚¹
 		queue.enqueueWriteBuffer(bufferF, CL_FALSE, 0, size, f.get());
 		queue.enqueueWriteBuffer(bufferX, CL_FALSE, 0, size, xOcl.get());
 		queue.enqueueWriteBuffer(bufferV, CL_FALSE, 0, size, vOcl.get());
 
 		for (int i = 0; i < loop; i++)
 		{
-			// Às
+			// å®Ÿè¡Œ
 			cl::Event kernelEvent;
 			queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(n), cl::NullRange, NULL, &kernelEvent);
 			kernelEvent.wait();
 		}
 
-		// ƒfƒoƒCƒX->ƒzƒXƒg
+		// ãƒ‡ãƒã‚¤ã‚¹->ãƒ›ã‚¹ãƒˆ
 		queue.enqueueReadBuffer(bufferX, CL_TRUE, 0, size, xOcl.get());
 		queue.enqueueReadBuffer(bufferV, CL_TRUE, 0, size, vOcl.get());
 
@@ -234,7 +234,7 @@ int main()
 			"OpenCL C version                                 : " << device.getInfo<CL_DEVICE_OPENCL_C_VERSION>() << std::endl;
 	}
 
-	// ƒGƒ‰[ƒ`ƒFƒbƒN
+	// ã‚¨ãƒ©ãƒ¼ãƒã‚§ãƒƒã‚¯
 	const double eps = 1e-8;
 	for (int i = 0; i < n; i++)
 	{
