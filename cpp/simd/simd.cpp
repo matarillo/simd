@@ -109,7 +109,7 @@ static void Simd(Vector4 x[], Vector4 v[], const Vector4 f[], const double m, co
 int main()
 {
 	const std::size_t n = 100000;
-	const int loop = 10000;
+	const int loop = 1000;
 
 	std::unique_ptr<Vector4[]> f(new Vector4[n]);
 	std::unique_ptr<Vector4[]> v(new Vector4[n]);
