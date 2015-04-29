@@ -4,6 +4,7 @@
 #include <memory>
 #include <algorithm>
 #include <chrono>
+#include <omp.h>
 
 class Timer
 {
@@ -84,12 +85,75 @@ static void Simd(Vector4 x[], Vector4 v[], const Vector4 f[], const double m, co
 	const __m256d dt2 = _mm256_broadcast_sd(&dt);
 	const double tmp = dt*dt / 2;
 	const __m256d tmp2 = _mm256_broadcast_sd(&tmp);
-
 	const double rm = 1.0 / m;
+	const __m256d rm2 = _mm256_broadcast_sd(&rm);
+
 	for (int i = 0; i < n; i++)
 	{
 		// a = f/m
-		const __m256d rm2 = _mm256_broadcast_sd(&rm);
+		const __m256d f2 = _mm256_load_pd(f[i].data);
+		const __m256d a = _mm256_mul_pd(f2, rm2);
+
+		// x += v*dt + a*dt*dt/2
+		const __m256d v2 = _mm256_load_pd(v[i].data);
+		const __m256d x2 = _mm256_load_pd(x[i].data);
+		const __m256d x3 = _mm256_fmadd_pd(v2, dt2, x2);
+		const __m256d x4 = _mm256_fmadd_pd(a, tmp2, x3);
+		_mm256_store_pd(x[i].data, x4);
+
+		// v += a*dt
+		const __m256d v3 = _mm256_fmadd_pd(a, dt2, v2);
+		_mm256_store_pd(v[i].data, v3);
+	}
+}
+
+// なにもしない+OpenMP
+static void NormalOmp(Vector4 x[], Vector4 v[], const Vector4 f[], const double m, const double dt, const std::size_t n)
+{
+	const double tmp = dt*dt / 2;
+	const double rm = 1.0 / m;
+
+#pragma omp parallel for
+	for (int i = 0; i < n; i++)
+	{
+		// a = f/m
+		Vector4 a;
+		for (int j = 0; j < 4; j++)
+		{
+			a.data[j] = f[i].data[j] * rm;
+		}
+
+		// x += v*dt + a*dt*dt/2
+		for (int j = 0; j < 4; j++)
+		{
+			const double dxv = v[i].data[j] * dt;
+			const double dxa = a.data[j] * tmp;
+			const double dx = dxv + dxa;
+			x[i].data[j] += dx;
+		}
+
+		// v += a*dt
+		for (int j = 0; j < 4; j++)
+		{
+			const double dv = a.data[j] * dt;
+			v[i].data[j] += dv;
+		}
+	}
+}
+
+// SIMD(AVX)+OpenMP
+static void SimdOmp(Vector4 x[], Vector4 v[], const Vector4 f[], const double m, const double dt, const std::size_t n)
+{
+	const __m256d dt2 = _mm256_broadcast_sd(&dt);
+	const double tmp = dt*dt / 2;
+	const __m256d tmp2 = _mm256_broadcast_sd(&tmp);
+	const double rm = 1.0 / m;
+	const __m256d rm2 = _mm256_broadcast_sd(&rm);
+
+#pragma omp parallel for
+	for (int i = 0; i < n; i++)
+	{
+		// a = f/m
 		const __m256d f2 = _mm256_load_pd(f[i].data);
 		const __m256d a = _mm256_mul_pd(f2, rm2);
 
@@ -158,6 +222,47 @@ int main()
 		const auto normalTime = timer.Time();
 		std::cout << normalTime.count() << "[ms]" << std::endl;
 	}
+
+#pragma omp parallel
+#pragma omp master
+	{
+		std::cout << "OpenMP: " << omp_get_num_threads() << "threads" << std::endl;
+	}
+
+	// なにもしない
+	std::unique_ptr<Vector4[]> vNormalOmp(new Vector4[n]);
+	std::unique_ptr<Vector4[]> xNormalOmp(new Vector4[n]);
+	{
+		std::copy_n(v.get(), n, vNormalOmp.get());
+		std::copy_n(x.get(), n, xNormalOmp.get());
+
+		std::cout << "Normal: ";
+		timer.Start();
+		for (int i = 0; i < loop; i++)
+		{
+			NormalOmp(xNormalOmp.get(), vNormalOmp.get(), f.get(), m, dt, n);
+		}
+		const auto normalOmpTime = timer.Time();
+		std::cout << normalOmpTime.count() << "[ms]" << std::endl;
+	}
+
+	// SIMD
+	std::unique_ptr<Vector4[]> vSimdOmp(new Vector4[n]);
+	std::unique_ptr<Vector4[]> xSimdOmp(new Vector4[n]);
+	{
+		std::copy_n(v.get(), n, vSimdOmp.get());
+		std::copy_n(x.get(), n, xSimdOmp.get());
+
+		std::cout << "Simd  : ";
+		timer.Start();
+		for (int i = 0; i < loop; i++)
+		{
+			SimdOmp(xSimdOmp.get(), vSimdOmp.get(), f.get(), m, dt, n);
+		}
+		const auto normalTime = timer.Time();
+		std::cout << normalTime.count() << "[ms]" << std::endl;
+	}
+
 
 	// エラーチェック
 	const double eps = 1e-8;
