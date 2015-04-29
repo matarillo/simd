@@ -2,20 +2,20 @@
 {
 	using System.Linq;
 
-	class Vector4
+	struct Vector4
 	{
-		public double[] data = new double[4];
+		public double[] data;
 
-		public Vector4()
+		public static Vector4 Init()
 		{
-			data[0] = 0;
-			data[1] = 0;
-			data[2] = 0;
-			data[3] = 0;
+			Vector4 vec = new Vector4();
+			vec.data = new double[4] { 0, 0, 0, 0 };
+			return vec;
 		}
 
 		public Vector4(double x, double y, double z)
 		{
+			data = new double[4];
 			data[0] = x;
 			data[1] = y;
 			data[2] = z;
@@ -34,7 +34,7 @@
 			for (int i = 0; i < n; i++)
 			{
 				// a = f/m
-				var a = new Vector4();
+				var a = Vector4.Init();
 				for (int j = 0; j < 4; j++)
 				{
 					a.data[j] = f[i].data[j] * rm;
