@@ -1,6 +1,8 @@
 ﻿namespace LWisteria.Simd
 {
 	using System.Linq;
+	using System.Numerics;
+	using System.Threading.Tasks;
 
 	struct Vector4
 	{
@@ -58,6 +60,43 @@
 			}
 		}
 
+		// SIMD
+		static void Simd(Vector<double>[] x, Vector<double>[] v, Vector<double>[] f, double m, double dt, int n)
+		{
+			double tmp = dt * dt / 2;
+			double rm = 1.0 / m;
+
+			for (int i = 0; i < n; i++)
+			{
+				// a = f/m
+				var a = f[i] * rm;
+
+				// x += v*dt + a*dt*dt/2
+				x[i] += v[i] * dt + a * tmp;
+
+				// v += a*dt
+				v[i] += a * dt;
+			}
+		}
+
+		// Parallel SIMD
+		static void ParallelSimd(Vector<double>[] x, Vector<double>[] v, Vector<double>[] f, double m, double dt, int n)
+		{
+			double tmp = dt * dt / 2;
+			double rm = 1.0 / m;
+			Parallel.For(0, n, i =>
+			{
+				// a = f/m
+				var a = f[i] * rm;
+
+				// x += v*dt + a*dt*dt/2
+				x[i] += v[i] * dt + a * tmp;
+
+				// v += a*dt
+				v[i] += a * dt;
+			});
+		}
+
 		static int Main()
 		{
 			const int n = 100000;
@@ -90,6 +129,33 @@
 				for (int i = 0; i < loop; i++)
 				{
 					Normal(xNormal, vNormal, f, m, dt, n);
+				}
+				var time = stopwatch.ElapsedMilliseconds;
+				System.Console.WriteLine("{0} [ms]", time);
+			}
+
+			// SIMD
+			var fSimd = f.Select(_x => new Vector<double>(_x.data)).ToArray();
+			var vSimd = v.Select(_x => new Vector<double>(_x.data)).ToArray();
+			var xSimd = x.Select(_x => new Vector<double>(_x.data)).ToArray();
+			{
+				System.Console.Write("SIMD: ");
+				stopwatch.Restart();
+				for (int i = 0; i < loop; i++)
+				{
+					Simd(xSimd, vSimd, fSimd, m, dt, n);
+				}
+				var time = stopwatch.ElapsedMilliseconds;
+				System.Console.WriteLine("{0} [ms]", time);
+			}
+
+			// Parallel + SIMD
+			{
+				System.Console.Write("Parallel SIMD: ");
+				stopwatch.Restart();
+				for (int i = 0; i < loop; i++)
+				{
+					ParallelSimd(xSimd, vSimd, fSimd, m, dt, n);
 				}
 				var time = stopwatch.ElapsedMilliseconds;
 				System.Console.WriteLine("{0} [ms]", time);
