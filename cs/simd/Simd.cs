@@ -21,6 +21,15 @@
 			data[2] = z;
 			data[3] = 0;
 		}
+
+		public Vector4(Vector4 v)
+		{
+			data = new double[4];
+			data[0] = v.data[0];
+			data[1] = v.data[1];
+			data[2] = v.data[2];
+			data[3] = v.data[3];
+		}
 	}
 
 	static class SimdMain
@@ -79,14 +88,15 @@
 			const double m = 2.5;
 
 			// なにもしない
-			var vNormal = new Vector4[n];
-			var xNormal = new Vector4[n];
+			Vector4[] vNormal;
+			Vector4[] xNormal;
 			{
-				x.CopyTo(xNormal, 0);
-				v.CopyTo(vNormal, 0);
+				xNormal = x.Select(val => new Vector4(val)).ToArray();
+				vNormal = v.Select(val => new Vector4(val)).ToArray();
 
 				System.Console.Write("Normal: ");
 				stopwatch.Restart();
+
 				for (int i = 0; i < loop; i++)
 				{
 					Normal(xNormal, vNormal, f, m, dt, n);
