@@ -36,35 +36,57 @@
 
 	struct Vector4Simd
 	{
-		public System.Numerics.Vector<double>[] data;
+		public System.Numerics.Vector<double> data0;
+		public System.Numerics.Vector<double> data1;
+		public System.Numerics.Vector<double> data2;
+		public System.Numerics.Vector<double> data3;
+		// 最小でも1SIMDは1要素を計算するはず
 
 		public static readonly int Count = (int)System.Math.Floor((double)Vector4.Count / System.Numerics.Vector<double>.Count);
 
-		public static Vector4Simd Create()
+		private delegate void Creator(ref Vector4Simd simd, Vector4 v);
+		private static readonly Creator creator =
+		(Count == 4) ?
+		((ref Vector4Simd v, Vector4 val) =>
 		{
-			var v = new Vector4Simd();
-            v.data = new System.Numerics.Vector<double>[Count];
-			return v;
+			// 1SIMD = 1要素
+			v.data0 = new System.Numerics.Vector<double>(val.data, 0);
+			v.data1 = new System.Numerics.Vector<double>(val.data, 1);
+			v.data2 = new System.Numerics.Vector<double>(val.data, 2);
+			v.data3 = new System.Numerics.Vector<double>(val.data, 3);
+		}) : ((Count == 2) ?
+		((ref Vector4Simd v, Vector4 val) =>
+		{
+			// 1SIMD = 2要素
+			v.data0 = new System.Numerics.Vector<double>(val.data, 0);
+			v.data1 = new System.Numerics.Vector<double>(val.data, 2);
+		}) :
+		// 3要素は多分ないはずなので無視
+		((Creator)((ref Vector4Simd v, Vector4 val) =>
+		{
+			// 1SIMD = 4要素以上
+			v.data0 = new System.Numerics.Vector<double>(val.data, 0);
+		})));
+		public static Vector4Simd Create(Vector4 v)
+		{
+			var simd = new Vector4Simd();
+			creator(ref simd, v);
+			return simd;
 		}
 
-		public Vector4Simd(Vector4 v)
+		private static readonly System.Func<Vector4Simd, double>[] getter =
 		{
-			data = new System.Numerics.Vector<double>[Count];
-
-			for (int i = 0; i < Count; i++)
-			{
-				data[i] = new System.Numerics.Vector<double>(v.data, i * System.Numerics.Vector<double>.Count);
-			}
-		}
-
+			/* 0番目の要素 */ (Count == 4) ? (v => v.data0[0]) : ((Count == 2) ? (v => v.data0[0]) : (System.Func<Vector4Simd, double>)(v => v.data0[0])),
+			/* 1番目の要素 */ (Count == 4) ? (v => v.data1[0]) : ((Count == 2) ? (v => v.data0[1]) : (System.Func<Vector4Simd, double>)(v => v.data0[1])),
+			/* 2番目の要素 */ (Count == 4) ? (v => v.data2[0]) : ((Count == 2) ? (v => v.data1[0]) : (System.Func<Vector4Simd, double>)(v => v.data0[2])),
+			/* 3番目の要素 */ (Count == 4) ? (v => v.data3[0]) : ((Count == 2) ? (v => v.data1[1]) : (System.Func<Vector4Simd, double>)(v => v.data0[3])),
+		};
 		public double this[int i]
 		{
 			get
 			{
-				int ii = i / System.Numerics.Vector<double>.Count;
-				int j = i % System.Numerics.Vector<double>.Count;
-				return data[ii][j];
-            }
+				return getter[i](this);
+			}
 		}
 	}
 
@@ -73,7 +95,7 @@
 		// なにもしない
 		static void Normal(Vector4[] x, Vector4[] v, Vector4[] f, double m, double dt, int n)
 		{
-			double tmp = dt * dt / 2;
+			double halfDt2 = dt * dt / 2;
 			double rm = 1.0 / m;
 
 			for (int i = 0; i < n; i++)
@@ -89,7 +111,7 @@
 				for (int j = 0; j < 4; j++)
 				{
 					double dxv = v[i].data[j] * dt;
-					double dxa = a.data[j] * tmp;
+					double dxa = a.data[j] * halfDt2;
 					double dx = dxv + dxa;
 					x[i].data[j] += dx;
 				}
@@ -103,32 +125,99 @@
 			}
 		}
 
+		private static readonly System.Func<Vector4Simd, double, Vector4Simd> force =
+		(Vector4Simd.Count == 4) ?
+		((Vector4Simd f, double rm) =>
+		{
+			// 1SIMD = 1要素
+			var a = new Vector4Simd();
+			a.data0 = f.data0 * rm;
+			a.data1 = f.data1 * rm;
+			a.data2 = f.data2 * rm;
+			a.data3 = f.data3 * rm;
+			return a;
+		}) : ((Vector4Simd.Count == 2) ?
+		((Vector4Simd f, double rm) =>
+		{
+			// 1SIMD = 2要素
+			var a = new Vector4Simd();
+			a.data0 = f.data0 * rm;
+			a.data1 = f.data1 * rm;
+			return a;
+		}) :
+		// 3要素は多分ないはずなので無視
+		((System.Func<Vector4Simd, double, Vector4Simd>)((Vector4Simd f, double rm) =>
+		{
+			// 1SIMD = 4要素以上
+			var a = new Vector4Simd();
+			a.data0 = f.data0 * rm;
+			return a;
+		})));
+
+		private delegate void Move(ref Vector4Simd x, Vector4Simd v, Vector4Simd a, double dt, double halfDt2);
+		private static readonly Move move =
+		(Vector4Simd.Count == 4) ?
+		((ref Vector4Simd x, Vector4Simd v, Vector4Simd a, double dt, double halfDt2) =>
+		{
+			// 1SIMD = 1要素
+			x.data0 += v.data0 * dt + a.data0 * halfDt2;
+			x.data1 += v.data1 * dt + a.data1 * halfDt2;
+			x.data2 += v.data2 * dt + a.data2 * halfDt2;
+			x.data3 += v.data3 * dt + a.data3 * halfDt2;
+		}) : ((Vector4Simd.Count == 2) ?
+		((ref Vector4Simd x, Vector4Simd v, Vector4Simd a, double dt, double halfDt2) =>
+		{
+			// 1SIMD = 2要素
+			x.data0 += v.data0 * dt + a.data0 * halfDt2;
+			x.data1 += v.data1 * dt + a.data1 * halfDt2;
+		}) :
+		// 3要素は多分ないはずなので無視
+		((Move)((ref Vector4Simd x, Vector4Simd v, Vector4Simd a, double dt, double halfDt2) =>
+		{
+			// 1SIMD = 4要素以上
+			x.data0 += v.data0 * dt + a.data0 * halfDt2;
+		})));
+
+		private delegate void Accelerate(ref Vector4Simd v, Vector4Simd a, double dt);
+		private static readonly Accelerate accelerate =
+		(Vector4Simd.Count == 4) ?
+		((ref Vector4Simd v, Vector4Simd a, double dt) =>
+		{
+			// 1SIMD = 1要素
+			v.data0 += a.data0 * dt;
+			v.data1 += a.data1 * dt;
+			v.data2 += a.data2 * dt;
+			v.data3 += a.data3 * dt;
+		}) : ((Vector4Simd.Count == 2) ?
+		((ref Vector4Simd v, Vector4Simd a, double dt) =>
+		{
+			// 1SIMD = 2要素
+			v.data0 += a.data0 * dt;
+			v.data1 += a.data1 * dt;
+		}) :
+		// 3要素は多分ないはずなので無視
+		((Accelerate)((ref Vector4Simd v, Vector4Simd a, double dt) =>
+		{
+			// 1SIMD = 4要素以上
+			v.data0 += a.data0 * dt;
+		})));
+
 		// SIMD
 		static void Simd(Vector4Simd[] x, Vector4Simd[] v, Vector4Simd[] f, double m, double dt, int n)
 		{
-			double tmp = dt * dt / 2;
+			double halfDt2 = dt * dt / 2;
 			double rm = 1.0 / m;
 
 			for (int i = 0; i < n; i++)
 			{
 				// a = f/m
-				var a = Vector4Simd.Create();
-				for (int j = 0; j < Vector4Simd.Count; j++)
-				{
-					a.data[j] = f[i].data[j] * rm;
-				}
+				var a = force(f[i], rm);
 
 				// x += v*dt + a*dt*dt/2
-				for (int j = 0; j < Vector4Simd.Count; j++)
-				{
-					x[i].data[j] += v[i].data[j] * dt + a.data[j] * tmp;
-				}
+				move(ref x[i], v[i], a, dt, halfDt2);
 
 				// v += a*dt
-				for (int j = 0; j < Vector4Simd.Count; j++)
-				{
-					v[i].data[j] += a.data[j] * dt;
-				}
+				accelerate(ref v[i], a, dt);
 			}
 		}
 
@@ -174,10 +263,10 @@
 			var vSimd = new Vector4Simd[n];
 			var xSimd = new Vector4Simd[n];
 			{
-				xSimd = x.Select(val => new Vector4Simd(val)).ToArray();
-				vSimd = v.Select(val => new Vector4Simd(val)).ToArray();
+				xSimd = x.Select(val => Vector4Simd.Create(val)).ToArray();
+				vSimd = v.Select(val => Vector4Simd.Create(val)).ToArray();
 
-				var fSimd = f.Select(val => new Vector4Simd(val)).ToArray();
+				var fSimd = f.Select(val => Vector4Simd.Create(val)).ToArray();
 
 				System.Console.Write("Simd: ");
 				stopwatch.Restart();
